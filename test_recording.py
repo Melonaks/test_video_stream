@@ -52,7 +52,7 @@ def channel():
 @pytest.mark.parametrize("video_format", video_format)
 def test_recording(video_format, height, scan, channel, client_api):
 
-    # Preparing channel and JSON payload
+    # Preparing JSON payload
     payload = { "format": video_format, "resolution": height + scan}
 
     # Set recording configuration
@@ -91,10 +91,8 @@ def test_recording(video_format, height, scan, channel, client_api):
     check_video_result = check_video(local_file_path, payload, wait_time)
 
     # Asserting results
-    for key in check_video_result.get('expected'):
-
-        expected = check_video_result.get('expected')
-        actual = check_video_result.get('actual')
-
+    expected = check_video_result.get('expected')
+    actual = check_video_result.get('actual')
+    for key in expected:
         assert (expected.get(key) == actual.get(key)
         ), f'{key} mismatch: expected {expected.get(key)}, but got {actual.get(key)}'
