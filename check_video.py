@@ -1,55 +1,50 @@
-import mimetypes
-import subprocess
+import ffmpeg
 
-def check_video(file_path, file_name, stream_json, expected_duration):
-    print("Checking video format")
+def check_video(file_path, stream_json, duration_expected: float):
 
-    # Extract MIME from recorded file
-    video_raw_mime, _ = mimetypes.guess_type(file_path)
-
-    # Extract duration from recorded file
-    timestamp_start, timestamp_end = (file_name.split('.')[0]).split('-')
-    duration = (int(timestamp_end) - int(timestamp_start))
+    # Extract format from file
+    _, file_format = file_path.split('.')
 
     # Extract expected file format
-    file_format_expected = stream_json['format']
+    file_format_expected = stream_json.get('format')
 
-    # Extract expected resolution
-    expected_resolution = stream_json['resolution'][:-1]
+    # Extract expected height
+    height_expected = int(stream_json.get('resolution')[:-1])
 
     # Extract expected scan type
-    expected_scan_type = stream_json['resolution'][-1]
+    scan_expected = stream_json.get('resolution')[-1]
 
-    # Defining MIME alias
-    match video_raw_mime:
-        case 'video/quicktime':
-            mime = "mov"
-        case 'video/x-msvideo':
-            mime = "avi"
-        case 'video/mp4':
-            mime = "mp4"
+    # Getting video duration, height and scan from file
+    ffprobe_output = ffmpeg.probe(
+                 file_path,
+                 cmd='ffprobe',
+                 v='error',
+                 )
+    video_stream = next((stream for stream in ffprobe_output['streams'] if stream['codec_type'] == 'video'), None)
+
+    duration = float(video_stream['duration'])
+    height = int(video_stream['height'])
+    scan_raw = video_stream['field_order']
+    match scan_raw:
+        case 'progressive':
+            scan = 'p'
+        case 'tt' | 'bb' | 'tb' | 'bt':
+            scan = 'i'
         case _:
-            mime = "Unknown"
+            scan = scan_raw
 
-    if mime != file_format_expected:
-        return False, f"Format mismatch: Actual MIME is {mime}, but expected file format is {file_format_expected}"
+    return {
+        "expected": {
+            "format": file_format_expected,
+            "scan": scan_expected,
+            "height": height_expected,
+            "duration": duration_expected
+        },
+        "actual": {
+            "format": file_format,
+            "scan": scan,
+            "height": height,
+            "duration": duration
+        }
 
-    # Getting video resolution and scan
-    ffprobe_output_csv = (subprocess.check_output(
-        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=height,field_order,duration',
-         '-of', 'csv', file_path]).decode().strip())
-    _, resolution, scan, real_duration = ffprobe_output_csv.split(',')
-
-    # Checking scan type
-    if expected_scan_type != scan[0]:
-        return False, f"Scan type mismatch: Actual scan type is {scan[0]}, but expected is {expected_scan_type}"
-
-    # Checking video resolution
-    if int(expected_resolution) != int(resolution):
-        return False, f"Resolution mismatch: Actual resolution is {resolution}, but expected is {expected_resolution}"
-
-    # Checking duration
-    if expected_duration != duration:
-        return False, f"Duration mismatch: Actual duration is {duration}, but expected is {expected_duration}"
-
-    return True, ""
+    }
