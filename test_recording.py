@@ -21,7 +21,7 @@ video_height = ["480", "720", "1080", "2160"]
 video_scan = ["p", "i"]
 
 # Dummy data START
-local_file_path_dummy = os.path.join(os.getcwd(), 'sample_video', '1726105909-1726109509.mp4')
+local_file_path_dummy = os.path.join(os.getcwd(), 'sample_video', 'sample_video.mp4')
 # Dummy data END
 
 # # Removing ssh fixture since we have no real device over ssh
